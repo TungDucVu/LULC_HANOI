@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hanoi Land Use & Land Cover (LULC) Classification Portal</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Interactive LULC Classification Dashboard for Hanoi (2021-2024) powered by Sentinel-2, ALOS DEM, and Random Forest classifier (83.48% Accuracy).">
+    <meta name="keywords" content="Hanoi LULC, Land Use, Land Cover, Earth Engine, Random Forest, Remote Sensing, GIS, Sentinel-2">
+    <meta name="author" content="TungDucVu">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS Styling -->
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --success: #10b981;
+            
+            /* LULC Palettes */
+            --color-water: #0000ff;
+            --color-urban: #ff0000;
+            --color-agriculture: #ffff00;
+            --color-greenery: #008000;
+            --color-bareland: #a0522d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding-bottom: 50px;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            font-size: 24px;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header h1 {
+            font-size: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-tag {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid var(--primary);
+            color: #60a5fa;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto 0 auto;
+            padding: 0 20px;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-icon-container {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .kpi-icon-accuracy {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .kpi-icon-kappa {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--primary);
+        }
+
+        .kpi-icon-res {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .kpi-icon-count {
+            background: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+        }
+
+        .kpi-details h4 {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            margin-top: 2px;
+        }
+
+        /* Map and Side Panel Grid */
+        .map-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            height: 620px;
+        }
+
+        @media (max-width: 1024px) {
+            .map-section {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .map-container {
+                height: 500px !important;
+            }
+            .side-panel {
+                height: 400px !important;
+            }
+        }
+
+        .map-wrapper {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .map-title {
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-container {
+            flex-grow: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .side-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            color: #60a5fa;
+        }
+
+        .panel-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 14px;
+        }
+
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .stat-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .stat-value {
+            font-weight: 600;
+        }
+
+        .stat-pct {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: 6px;
+        }
+
+        /* Analytics Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .analytics-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .analytics-card h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
+            color: #60a5fa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            min-height: 280px;
+        }
+
+        /* Tabular Data Section */
+        .data-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
+        }
+
+        .data-header h3 {
+            font-size: 16px;
+            color: #60a5fa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-bar {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: var(--text-main);
+            font-size: 13px;
+            width: 200px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .search-bar:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 5px var(--primary-glow);
+        }
+
+        .table-wrapper {
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid var(--card-border);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: #60a5fa;
+        }
+
+        /* Technical Info & Method Tab Control */
+        .tabs-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-headers {
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-header {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-header.active {
+            color: #60a5fa;
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* custom styling inside tabs */
+        .method-step {
+            margin-bottom: 15px;
+            padding-left: 15px;
+            border-left: 2px solid var(--primary);
+        }
+
+        .method-step h4 {
+            font-size: 15px;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+
+        .method-step p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .spec-table {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .spec-table th {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Leaflet Interactive Legend */
+        .info-legend {
+            background: rgba(15, 23, 42, 0.9) !important;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text-main);
+            line-height: 1.4;
+            font-size: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .info-legend h4 {
+            margin-bottom: 6px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 3px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Tooltip styling override */
+        .leaflet-tooltip {
+            background-color: rgba(15, 23, 42, 0.95) !important;
+            border: 1px solid var(--primary) !important;
+            color: var(--text-main) !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 12px !important;
+        }
+
+        /* Circular progress bar */
+        .radial-progress-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .radial-chart {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .radial-outer {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            padding: 12px;
+            background: conic-gradient(var(--success) 83.48%, rgba(255, 255, 255, 0.05) 0deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .radial-inner {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .radial-pct {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .radial-lbl {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-title-container">
+            <i class="fa-solid fa-earth-asia header-logo"></i>
+            <div>
+                <h1>Hanoi Land Cover Portal</h1>
+                <p style="font-size: 11px; color: var(--text-muted);">Satellite-Based Classification Dashboard (2021 - 2024)</p>
+            </div>
+            <span class="header-tag">Interactive</span>
+        </div>
+        <div class="header-actions">
+            <a href="hanoi_lulc_district_areas.csv" class="btn" download><i class="fa-solid fa-file-csv"></i> Export CSV</a>
+            <a href="classify_hanoi.py" class="btn" download><i class="fa-solid fa-code"></i> Python Pipeline</a>
+            <a href="https://github.com/TungDucVu/LULC_HANOI" target="_blank" class="btn btn-primary"><i class="fa-brands fa-github"></i> Repository</a>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon-container kpi-icon-accuracy">
+                    <i class="fa-solid fa-bullseye"></i>
+                </div>
+                <div class="kpi-details">
+                    <h4>Overall Accuracy</h4>
+                    <div class="kpi-value">83.48%</div>
+                </div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon-container kpi-icon-kappa">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div class="kpi-details">
+                    <h4>Kappa Coefficient</h4>
+                    <div class="kpi-value">0.7930</div>
+                </div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon-container kpi-icon-res">
+                    <i class="fa-solid fa-border-all"></i>
+                </div>
+                <div class="kpi-details">
+                    <h4>Spatial Resolution</h4>
+                    <div class="kpi-value">10 Meters</div>
+                </div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon-container kpi-icon-count">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="kpi-details">
+                    <h4>Target Classes</h4>
+                    <div class="kpi-value">5 LULC Classes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map and Side Panel -->
+        <div class="map-section">
+            <div class="map-wrapper">
+                <div class="map-header">
+                    <h3 class="map-title"><i class="fa-solid fa-map-location-dot"></i> Hanoi LULC Classification Map (2024)</h3>
+                    <div style="font-size: 11px; color: var(--text-muted);">
+                        <i class="fa-solid fa-circle-info"></i> Hover over districts to view local breakdown
+                    </div>
+                </div>
+                <div id="map" class="map-container"></div>
+            </div>
+            
+            <div class="side-panel">
+                <div class="panel-header">
+                    <h3 id="panel-title" class="panel-title">Hanoi Overview</h3>
+                    <p id="panel-subtitle" class="panel-subtitle">Aggregated metropolitan statistics</p>
+                </div>
+                
+                <div id="panel-stats">
+                    <!-- Stat Rows will be filled dynamically -->
+                </div>
+                
+                <div class="radial-progress-wrapper">
+                    <div class="radial-chart">
+                        <div id="radial-outer" class="radial-outer">
+                            <div class="radial-inner">
+                                <span id="radial-pct" class="radial-pct">--</span>
+                                <span id="radial-lbl" class="radial-lbl">Urbanized</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="position: relative; height: 180px; margin-top: auto;">
+                    <canvas id="miniPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Regional Analytics Section -->
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h3><i class="fa-solid fa-chart-bar"></i> District Urbanization Rates (%)</h3>
+                <div class="chart-container">
+                    <canvas id="urbanizationChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3><i class="fa-solid fa-chart-pie"></i> Hanoi Total Land Cover Composition</h3>
+                <div class="chart-container">
+                    <canvas id="totalCompositionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="data-card">
+            <div class="data-header">
+                <h3><i class="fa-solid fa-table"></i> District-Level Land Cover Statistics</h3>
+                <input type="text" id="table-search" class="search-bar" placeholder="Search district..." onkeyup="filterTable()">
+            </div>
+            <div class="table-wrapper">
+                <table id="districts-table">
+                    <thead>
+                        <tr>
+                            <th>District</th>
+                            <th>Total Area (km²)</th>
+                            <th>Urban Area (km²)</th>
+                            <th>Urbanization (%)</th>
+                            <th>Water (km²)</th>
+                            <th>Cropland (km²)</th>
+                            <th>Greenery (km²)</th>
+                            <th>Bare Land (km²)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Filled dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Technical Specs Tabs -->
+        <div class="tabs-card">
+            <div class="tab-headers">
+                <button class="tab-header active" onclick="switchTab(event, 'tab-pipeline')">Classification Pipeline</button>
+                <button class="tab-header" onclick="switchTab(event, 'tab-features')">Feature Selection</button>
+                <button class="tab-header" onclick="switchTab(event, 'tab-validation')">Validation Results</button>
+            </div>
+            
+            <div id="tab-pipeline" class="tab-content active">
+                <div class="method-step">
+                    <h4>1. Composite Generation & Resampling</h4>
+                    <p>Uses dry-season (Jan 1 - Feb 15) Sentinel-2 Level-2A surface reflectance composites. Bicubic resampling is forced directly on individual tiles to preserve a strict 10-meter cell size and project accurately without default Earth Engine scaling degradation.</p>
+                </div>
+                <div class="method-step">
+                    <h4>2. Multi-Source Integration</h4>
+                    <p>Integrates ALOS DSM (30m elevation and calculated slope) resampled to 10m to add topographical predictors. Features such as GLCM texture contrast (on NIR band) and temporal NDVI standard deviation are engineered to resolve complex urban/agricultural noise.</p>
+                </div>
+                <div class="method-step">
+                    <h4>3. Stratified Automated Sampling & Spectral Filtering</h4>
+                    <p>Samples 2,500 training points stratified according to reclassified ESA WorldCover 2021 labels. Applies rigorous physical index filters (e.g., NDVI limits for greenery/bare soil, MNDWI thresholding for water) to eliminate reference label noise. Water profiles are augmented with 50 manually digitized pixels from the Red River.</p>
+                </div>
+                <div class="method-step">
+                    <h4>4. Random Forest Classifier</h4>
+                    <p>Trains a smileRandomForest classifier with 200 trees. Post-processing cleans remaining speckle noise using a circular Focal Mode spatial filter (radius 1px) and forces a permanent water mask over the main Red River channel using static ESA labels.</p>
+                </div>
+            </div>
+            
+            <div id="tab-features" class="tab-content">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">The classifier uses a total of 16 predictor features engineered from spectral bands, spectral indexes, elevation layers, temporal standard deviation, and texture metrics.</p>
+                <div class="table-wrapper">
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>Feature Type</th>
+                                <th>Name</th>
+                                <th>Description / Formula</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Spectral Bands</td>
+                                <td>B2, B3, B4, B8, B11, B12</td>
+                                <td>Sentinel-2 bands corresponding to Blue, Green, Red, Near-Infrared, and Short-Wave Infrared.</td>
+                            </tr>
+                            <tr>
+                                <td>Spectral Indices</td>
+                                <td>NDVI, NDBI, MNDWI</td>
+                                <td>Classical indices tracking vegetation vitality, built-up surfaces, and open water bodies.</td>
+                            </tr>
+                            <tr>
+                                <td>Advanced Indices</td>
+                                <td>EVI, SAVI, BSI</td>
+                                <td>Enhanced Vegetation, Soil-Adjusted Vegetation, and Bare Soil indices to handle soil background variations.</td>
+                            </tr>
+                            <tr>
+                                <td>Topography</td>
+                                <td>elevation, slope</td>
+                                <td>Elevation and slope calculated from JAXA ALOS AW3D30 digital surface model.</td>
+                            </tr>
+                            <tr>
+                                <td>Temporal Variability</td>
+                                <td>NDVI_stdDev</td>
+                                <td>Standard deviation of NDVI calculated over a full year to identify seasonal crop cycles vs. static urban surfaces.</td>
+                            </tr>
+                            <tr>
+                                <td>Texture Features</td>
+                                <td>B8_contrast</td>
+                                <td>GLCM contrast texture metric calculated on the B8 NIR band to capture spatial pattern differences.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="tab-validation" class="tab-content">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Independent validation performed on a 30% random split of clean reference samples. Overall Accuracy: <strong>83.48%</strong>, Kappa: <strong>0.7930</strong>.</p>
+                <div class="table-wrapper">
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>Actual \ Predicted</th>
+                                <th style="color: #60a5fa;">Water</th>
+                                <th style="color: #f87171;">Urban</th>
+                                <th style="color: #fbbf24;">Agriculture</th>
+                                <th style="color: #34d399;">Greenery</th>
+                                <th style="color: #fb923c;">Bare Land</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight: 600;">Water</td>
+                                <td style="background: rgba(16, 185, 129, 0.2); font-weight: 700;">533</td>
+                                <td>0</td>
+                                <td>18</td>
+                                <td>0</td>
+                                <td>5</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Urban</td>
+                                <td>2</td>
+                                <td style="background: rgba(16, 185, 129, 0.2); font-weight: 700;">353</td>
+                                <td>18</td>
+                                <td>34</td>
+                                <td>61</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Agriculture</td>
+                                <td>16</td>
+                                <td>16</td>
+                                <td style="background: rgba(16, 185, 129, 0.2); font-weight: 700;">344</td>
+                                <td>54</td>
+                                <td>11</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Greenery</td>
+                                <td>1</td>
+                                <td>32</td>
+                                <td>57</td>
+                                <td style="background: rgba(16, 185, 129, 0.2); font-weight: 700;">347</td>
+                                <td>2</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Bare Land</td>
+                                <td>1</td>
+                                <td>41</td>
+                                <td>17</td>
+                                <td>0</td>
+                                <td style="background: rgba(16, 185, 129, 0.2); font-weight: 700;">383</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Include District Boundaries GeoJSON -->
+    <script src="hanoi_districts.js"></script>
+
+    <!-- Interactive Logic Script -->
+    <script>
+        // 1. Embedded Data
+        const lulcData = [{"Code_Vung":1001,"District_Name":"Ba Dinh","Water_Area_km2":1.2050656228,"Urban_Area_km2":6.6633963733,"Agriculture_Area_km2":0.4354988414,"Greenery_Area_km2":2.3088958868,"Bare_Land_Area_km2":0.8429638026,"Total_LULC_Area_km2":11.455820527},{"Code_Vung":1002,"District_Name":"Hoan Kiem","Water_Area_km2":0.7957105679,"Urban_Area_km2":3.559522105,"Agriculture_Area_km2":0.1221516428,"Greenery_Area_km2":1.014627487,"Bare_Land_Area_km2":0.4354755303,"Total_LULC_Area_km2":5.9274873329},{"Code_Vung":1003,"District_Name":"Tay Ho","Water_Area_km2":8.6040226243,"Urban_Area_km2":8.8122077623,"Agriculture_Area_km2":2.1329748351,"Greenery_Area_km2":6.5567783465,"Bare_Land_Area_km2":1.6135011493,"Total_LULC_Area_km2":27.7194847174},{"Code_Vung":1004,"District_Name":"Long Bien","Water_Area_km2":7.2978777146,"Urban_Area_km2":22.9618190584,"Agriculture_Area_km2":2.6326535539,"Greenery_Area_km2":19.9198852793,"Bare_Land_Area_km2":4.0857863633,"Total_LULC_Area_km2":56.8980219695},{"Code_Vung":1005,"District_Name":"Cau Giay","Water_Area_km2":0.6553275144,"Urban_Area_km2":9.1061818729,"Agriculture_Area_km2":1.4421799116,"Greenery_Area_km2":1.525967322,"Bare_Land_Area_km2":3.1775068518,"Total_LULC_Area_km2":15.9071634728},{"Code_Vung":1006,"District_Name":"Dong Da","Water_Area_km2":0.3346566153,"Urban_Area_km2":7.1158300275,"Agriculture_Area_km2":0.2434807511,"Greenery_Area_km2":0.4696416965,"Bare_Land_Area_km2":0.9857095506,"Total_LULC_Area_km2":9.149318641},{"Code_Vung":1007,"District_Name":"Hai Ba Trung","Water_Area_km2":2.2015266261,"Urban_Area_km2":8.4023346714,"Agriculture_Area_km2":0.1795467496,"Greenery_Area_km2":0.8374202907,"Bare_Land_Area_km2":1.2530884202,"Total_LULC_Area_km2":12.8739167581},{"Code_Vung":1008,"District_Name":"Hoang Mai","Water_Area_km2":4.7605607593,"Urban_Area_km2":18.3558403288,"Agriculture_Area_km2":1.9240280284,"Greenery_Area_km2":8.9923170553,"Bare_Land_Area_km2":3.9456976216,"Total_LULC_Area_km2":37.9784437933},{"Code_Vung":1009,"District_Name":"Thanh Xuan","Water_Area_km2":0.3973614148,"Urban_Area_km2":5.582232504,"Agriculture_Area_km2":0.2348626958,"Greenery_Area_km2":0.8090458969,"Bare_Land_Area_km2":1.3269943142,"Total_LULC_Area_km2":8.3504968257},{"Code_Vung":1016,"District_Name":"Soc Son","Water_Area_km2":11.6512141283,"Urban_Area_km2":52.5364153469,"Agriculture_Area_km2":90.1112421657,"Greenery_Area_km2":140.5369799168,"Bare_Land_Area_km2":9.2128860523,"Total_LULC_Area_km2":304.0487376101},{"Code_Vung":1017,"District_Name":"Dong Anh","Water_Area_km2":13.0818304733,"Urban_Area_km2":49.4663372718,"Agriculture_Area_km2":46.4603976831,"Greenery_Area_km2":72.4292889371,"Bare_Land_Area_km2":9.0238954203,"Total_LULC_Area_km2":190.4617497856},{"Code_Vung":1018,"District_Name":"Gia Lam","Water_Area_km2":12.2781385455,"Urban_Area_km2":30.1604884323,"Agriculture_Area_km2":17.6083663229,"Greenery_Area_km2":53.1619264689,"Bare_Land_Area_km2":5.1786600151,"Total_LULC_Area_km2":118.3875797847},{"Code_Vung":1019,"District_Name":"Tu Liem","Water_Area_km2":5.2542419313,"Urban_Area_km2":28.7224893896,"Agriculture_Area_km2":7.8538660262,"Greenery_Area_km2":25.8050670716,"Bare_Land_Area_km2":7.0814947531,"Total_LULC_Area_km2":74.7171591719},{"Code_Vung":1020,"District_Name":"Thanh Tri","Water_Area_km2":6.5335646579,"Urban_Area_km2":26.0810914042,"Agriculture_Area_km2":12.9153439391,"Greenery_Area_km2":20.2311605592,"Bare_Land_Area_km2":4.680888071,"Total_LULC_Area_km2":70.4420486313},{"Code_Vung":1250,"District_Name":"Me Linh","Water_Area_km2":13.687983218,"Urban_Area_km2":27.2627693875,"Agriculture_Area_km2":39.0215266086,"Greenery_Area_km2":58.4790291131,"Bare_Land_Area_km2":5.1532953404,"Total_LULC_Area_km2":143.6046036677},{"Code_Vung":1268,"District_Name":"Ha Dong","Water_Area_km2":0.9483886395,"Urban_Area_km2":17.2212236958,"Agriculture_Area_km2":3.9251588497,"Greenery_Area_km2":9.0194060691,"Bare_Land_Area_km2":3.0527444529,"Total_LULC_Area_km2":34.1669217069},{"Code_Vung":1269,"District_Name":"Son Tay","Water_Area_km2":12.3781581988,"Urban_Area_km2":20.0473277829,"Agriculture_Area_km2":14.3595121607,"Greenery_Area_km2":73.3415932438,"Bare_Land_Area_km2":2.6172715363,"Total_LULC_Area_km2":122.7438629225},{"Code_Vung":1271,"District_Name":"Ba Vi","Water_Area_km2":39.5024977982,"Urban_Area_km2":43.1188200354,"Agriculture_Area_km2":63.2890165346,"Greenery_Area_km2":265.8256601131,"Bare_Land_Area_km2":7.4331775115,"Total_LULC_Area_km2":419.1691719929},{"Code_Vung":1272,"District_Name":"Phuc Tho","Water_Area_km2":8.3647434272,"Urban_Area_km2":21.8481386388,"Agriculture_Area_km2":25.6690498182,"Greenery_Area_km2":60.0933821725,"Bare_Land_Area_km2":2.5360078286,"Total_LULC_Area_km2":118.5113218853},{"Code_Vung":1273,"District_Name":"Dan Phuong","Water_Area_km2":8.7442601887,"Urban_Area_km2":18.4451001468,"Agriculture_Area_km2":6.6787779975,"Greenery_Area_km2":36.8424176693,"Bare_Land_Area_km2":2.0783923918,"Total_LULC_Area_km2":72.7889483941},{"Code_Vung":1274,"District_Name":"Hoai Duc","Water_Area_km2":1.4613129678,"Urban_Area_km2":28.32571933,"Agriculture_Area_km2":13.9769288856,"Greenery_Area_km2":35.6240652275,"Bare_Land_Area_km2":4.5565099214,"Total_LULC_Area_km2":83.9445363322},{"Code_Vung":1275,"District_Name":"Quoc Oai","Water_Area_km2":7.9548964463,"Urban_Area_km2":25.8420079539,"Agriculture_Area_km2":45.7668837162,"Greenery_Area_km2":67.3529228494,"Bare_Land_Area_km2":4.3350938194,"Total_LULC_Area_km2":151.2518047852},{"Code_Vung":1276,"District_Name":"Thach That","Water_Area_km2":5.0501302875,"Urban_Area_km2":29.8667811264,"Agriculture_Area_km2":32.2562045843,"Greenery_Area_km2":100.7696157752,"Bare_Land_Area_km2":4.8914182946,"Total_LULC_Area_km2":172.834150068},{"Code_Vung":1277,"District_Name":"Chuong My","Water_Area_km2":15.2118516356,"Urban_Area_km2":42.7815938594,"Agriculture_Area_km2":82.5918918402,"Greenery_Area_km2":83.3704043075,"Bare_Land_Area_km2":5.3452488136,"Total_LULC_Area_km2":229.3009904562},{"Code_Vung":1278,"District_Name":"Thanh Oai","Water_Area_km2":7.0508812646,"Urban_Area_km2":27.2034027041,"Agriculture_Area_km2":61.7565985709,"Greenery_Area_km2":26.2556480764,"Bare_Land_Area_km2":3.6956917087,"Total_LULC_Area_km2":125.9622223246},{"Code_Vung":1279,"District_Name":"Thuong Tin","Water_Area_km2":11.1652856442,"Urban_Area_km2":35.1022584188,"Agriculture_Area_km2":53.3609916528,"Greenery_Area_km2":33.4084378793,"Bare_Land_Area_km2":6.8367646384,"Total_LULC_Area_km2":139.8737382335},{"Code_Vung":1280,"District_Name":"Phu Xuyen","Water_Area_km2":21.5783559979,"Urban_Area_km2":28.1172951095,"Agriculture_Area_km2":101.3005393239,"Greenery_Area_km2":24.1314013505,"Bare_Land_Area_km2":5.022547465,"Total_LULC_Area_km2":180.1501392469},{"Code_Vung":1281,"District_Name":"Ung Hoa","Water_Area_km2":19.1074149785,"Urban_Area_km2":25.0024994432,"Agriculture_Area_km2":112.8782492766,"Greenery_Area_km2":17.5084386283,"Bare_Land_Area_km2":4.6251500965,"Total_LULC_Area_km2":179.1217524232},{"Code_Vung":1282,"District_Name":"My Duc","Water_Area_km2":26.5556972871,"Urban_Area_km2":25.4667641612,"Agriculture_Area_km2":86.4857622764,"Greenery_Area_km2":90.0318190965,"Bare_Land_Area_km2":6.779685543,"Total_LULC_Area_km2":235.3197283643}];
+
+        // Calculate metropolitan totals
+        const metroTotals = {
+            name: "Hanoi Overview",
+            subtitle: "Aggregated metropolitan statistics",
+            water: 0,
+            urban: 0,
+            ag: 0,
+            green: 0,
+            bare: 0,
+            total: 0
+        };
+
+        lulcData.forEach(d => {
+            metroTotals.water += d.Water_Area_km2;
+            metroTotals.urban += d.Urban_Area_km2;
+            metroTotals.ag += d.Agriculture_Area_km2;
+            metroTotals.green += d.Greenery_Area_km2;
+            metroTotals.bare += d.Bare_Land_Area_km2;
+            metroTotals.total += d.Total_LULC_Area_km2;
+        });
+
+        // Initialize Map
+        const map = L.map('map', {
+            center: [21.01, 105.78],
+            zoom: 10,
+            minZoom: 9,
+            maxZoom: 14
+        });
+
+        // Basemaps
+        const darkBasemap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CartoDB',
+            maxZoom: 20
+        }).addTo(map);
+
+        const satelliteBasemap = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google Earth',
+            maxZoom: 20
+        });
+
+        // Add LULC Static PNG raster overlay
+        const bounds = [[20.565141830000048, 105.28470698200006], [21.385984408000095, 106.01836448300003]];
+        const lulcOverlay = L.imageOverlay('hanoi_lulc_2024.png', bounds, {
+            opacity: 0.75,
+            interactive: false
+        }).addTo(map);
+
+        // Control layers
+        L.control.layers({
+            "Dark Vector": darkBasemap,
+            "Satellite": satelliteBasemap
+        }, {
+            "LULC 2024 Overlay": lulcOverlay
+        }, { collapsed: false, position: 'topright' }).addTo(map);
+
+        // Add Legend Control
+        const legend = L.control({ position: 'bottomleft' });
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'info-legend');
+            div.innerHTML = `
+                <h4>LULC Legend</h4>
+                <div class="legend-item"><span class="legend-color" style="background:var(--color-water)"></span> Water (Nước)</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--color-urban)"></span> Urban (Đô thị)</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--color-agriculture)"></span> Agriculture (Nông nghiệp)</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--color-greenery)"></span> Greenery (Cây xanh)</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--color-bareland)"></span> Bare Land (Đất trống)</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // District boundary interactivity
+        let geojsonLayer;
+        let activeDistrictId = null;
+
+        function getLulcRecord(code) {
+            // pad code to 5 chars if numeric
+            const paddedCode = String(code).padStart(5, '0');
+            return lulcData.find(d => String(d.Code_Vung).padStart(5, '0') === paddedCode);
+        }
+
+        function styleFeature(feature) {
+            return {
+                fillColor: '#ffffff',
+                weight: 1.5,
+                opacity: 0.8,
+                color: 'rgba(255,255,255,0.3)',
+                fillOpacity: 0.05
+            };
+        }
+
+        function highlightFeature(e) {
+            const layer = e.target;
+            layer.setStyle({
+                weight: 2.5,
+                color: '#3b82f6',
+                fillOpacity: 0.15,
+                fillColor: '#3b82f6'
+            });
+            layer.bringToFront();
+            
+            const code = layer.feature.properties.Code_vung;
+            updateSidePanel(code);
+        }
+
+        function resetHighlight(e) {
+            geojsonLayer.resetStyle(e.target);
+            // If we are not hovering over any district, revert panel to Metro Overview
+            updateSidePanel(null);
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: function(e) {
+                    map.fitBounds(e.target.getBounds());
+                }
+            });
+        }
+
+        // Render GeoJSON
+        if (typeof hanoiDistrictsGeoJSON !== 'undefined') {
+            geojsonLayer = L.geoJSON(hanoiDistrictsGeoJSON, {
+                style: styleFeature,
+                onEachFeature: onEachFeature
+            }).addTo(map);
+        }
+
+        // 2. Charts & Side Panel Handling
+        let miniPieChart = null;
+        let urbanizationChart = null;
+        let totalCompositionChart = null;
+
+        function updateSidePanel(districtCode) {
+            let record = null;
+            let title = metroTotals.name;
+            let subtitle = metroTotals.subtitle;
+            let water = metroTotals.water;
+            let urban = metroTotals.urban;
+            let ag = metroTotals.ag;
+            let green = metroTotals.green;
+            let bare = metroTotals.bare;
+            let total = metroTotals.total;
+
+            if (districtCode) {
+                record = getLulcRecord(districtCode);
+                if (record) {
+                    title = record.District_Name;
+                    subtitle = `District Code: ${String(record.Code_Vung).padStart(5, '0')}`;
+                    water = record.Water_Area_km2;
+                    urban = record.Urban_Area_km2;
+                    ag = record.Agriculture_Area_km2;
+                    green = record.Greenery_Area_km2;
+                    bare = record.Bare_Land_Area_km2;
+                    total = record.Total_LULC_Area_km2;
+                }
+            }
+
+            document.getElementById('panel-title').innerText = title;
+            document.getElementById('panel-subtitle').innerText = subtitle;
+
+            const urbanPct = (urban / total) * 100;
+            document.getElementById('radial-pct').innerText = urbanPct.toFixed(1) + "%";
+            document.getElementById('radial-outer').style.background = `conic-gradient(var(--success) ${urbanPct}%, rgba(255, 255, 255, 0.05) 0deg)`;
+
+            const statsHTML = `
+                <div class="stat-row">
+                    <span class="stat-label"><span class="stat-color-dot" style="background:var(--color-water)"></span>Water</span>
+                    <span class="stat-value">${water.toFixed(2)} km² <span class="stat-pct">(${((water/total)*100).toFixed(1)}%)</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="stat-color-dot" style="background:var(--color-urban)"></span>Urban / Built-up</span>
+                    <span class="stat-value">${urban.toFixed(2)} km² <span class="stat-pct">(${urbanPct.toFixed(1)}%)</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="stat-color-dot" style="background:var(--color-agriculture)"></span>Agriculture</span>
+                    <span class="stat-value">${ag.toFixed(2)} km² <span class="stat-pct">(${((ag/total)*100).toFixed(1)}%)</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="stat-color-dot" style="background:var(--color-greenery)"></span>Greenery</span>
+                    <span class="stat-value">${green.toFixed(2)} km² <span class="stat-pct">(${((green/total)*100).toFixed(1)}%)</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="stat-color-dot" style="background:var(--color-bareland)"></span>Bare Land</span>
+                    <span class="stat-value">${bare.toFixed(2)} km² <span class="stat-pct">(${((bare/total)*100).toFixed(1)}%)</span></span>
+                </div>
+                <div class="stat-row" style="font-weight: 700; border-bottom: none; margin-top: 5px;">
+                    <span class="stat-label" style="color:var(--text-main)">Total Area</span>
+                    <span class="stat-value">${total.toFixed(2)} km²</span>
+                </div>
+            `;
+            document.getElementById('panel-stats').innerHTML = statsHTML;
+
+            // Update Mini Pie Chart
+            const chartData = [water, urban, ag, green, bare];
+            if (miniPieChart) {
+                miniPieChart.data.datasets[0].data = chartData;
+                miniPieChart.update();
+            } else {
+                const ctx = document.getElementById('miniPieChart').getContext('2d');
+                miniPieChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Water', 'Urban', 'Agriculture', 'Greenery', 'Bare Land'],
+                        datasets: [{
+                            data: chartData,
+                            backgroundColor: ['#0000ff', '#ff0000', '#ffff00', '#008000', '#a0522d'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw || 0;
+                                        const pct = ((value / total) * 100).toFixed(1);
+                                        return ` ${context.label}: ${value.toFixed(2)} km² (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initialize Charts on load
+        function initCharts() {
+            // Sort data descending by urbanization rate
+            const sortedData = [...lulcData].map(d => {
+                return {
+                    name: d.District_Name,
+                    pct: (d.Urban_Area_km2 / d.Total_LULC_Area_km2) * 100
+                };
+            }).sort((a, b) => b.pct - a.pct);
+
+            const urbanCtx = document.getElementById('urbanizationChart').getContext('2d');
+            urbanizationChart = new Chart(urbanCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedData.map(d => d.name),
+                    datasets: [{
+                        label: 'Urbanization Rate (%)',
+                        data: sortedData.map(d => d.pct),
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { color: '#9ca3af', font: { size: 9 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { color: '#9ca3af', callback: val => val + '%' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Total Composition Doughnut Chart
+            const compCtx = document.getElementById('totalCompositionChart').getContext('2d');
+            totalCompositionChart = new Chart(compCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Water', 'Urban', 'Agriculture', 'Greenery', 'Bare Land'],
+                    datasets: [{
+                        data: [metroTotals.water, metroTotals.urban, metroTotals.ag, metroTotals.green, metroTotals.bare],
+                        backgroundColor: ['#0000ff', '#ff0000', '#ffff00', '#008000', '#a0522d'],
+                        borderWidth: 1,
+                        borderColor: 'rgba(15, 23, 42, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#f3f4f6', font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    const pct = ((value / metroTotals.total) * 100).toFixed(2);
+                                    return ` ${context.label}: ${value.toLocaleString(undefined, {maximumFractionDigits:1})} km² (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize Table
+        function initTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            lulcData.forEach(d => {
+                const tr = document.createElement('tr');
+                const urbanPct = (d.Urban_Area_km2 / d.Total_LULC_Area_km2) * 100;
+                tr.innerHTML = `
+                    <td style="font-weight:600;">${d.District_Name}</td>
+                    <td>${d.Total_LULC_Area_km2.toFixed(2)}</td>
+                    <td>${d.Urban_Area_km2.toFixed(2)}</td>
+                    <td style="font-weight:700; color:#ef4444;">${urbanPct.toFixed(1)}%</td>
+                    <td>${d.Water_Area_km2.toFixed(2)}</td>
+                    <td>${d.Agriculture_Area_km2.toFixed(2)}</td>
+                    <td>${d.Greenery_Area_km2.toFixed(2)}</td>
+                    <td>${d.Bare_Land_Area_km2.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Filter Table Search
+        function filterTable() {
+            const input = document.getElementById('table-search');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('districts-table');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                const td = tr[i].getElementsByTagName('td')[0];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        // Tab Switching Logic
+        function switchTab(evt, tabId) {
+            const contents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < contents.length; i++) {
+                contents[i].classList.remove('active');
+            }
+            const headers = document.getElementsByClassName('tab-header');
+            for (let i = 0; i < headers.length; i++) {
+                headers[i].classList.remove('active');
+            }
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        // Run Initialization
+        updateSidePanel(null);
+        initCharts();
+        initTable();
+    </script>
+</body>
+</html>
