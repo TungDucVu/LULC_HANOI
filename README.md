@@ -73,11 +73,31 @@ Bare Land (4)      |      1    |    41     |       17        |      0       |   
 
 ---
 
-## 3. Directory Deliverables
+## 3. Directory Deliverables & Structure
+
+The repository is organized following a simplified structure (Option A), separating scripts from datasets:
+
+```text
+LULC_Hanoi_2021_2024/
+├── data/                             # All data inputs, boundaries, and maps
+│   ├── hanoi_districts.geojson       # Hanoi district boundary coordinates (199 KB)
+│   ├── hanoi_districts.js            # GeoJSON wrapped in JS for offline CORS-free loading
+│   ├── hanoi_lulc_2024.png           # Static 10m raster LULC classification overlay
+│   └── hanoi_lulc_district_areas.csv  # District-level area statistics (km²)
+│
+├── classify_hanoi.py                 # Main Python script for model classification
+├── classify_hanoi.ipynb              # Detailed Jupyter Notebook pipeline
+├── index.html                        # Stunning interactive web dashboard (offline compatible)
+├── hanoi_lulc_interactive.html       # Dynamic Folium map (reference layer)
+└── README.md
+```
+
 * 📄 **[classify_hanoi.py](classify_hanoi.py)**: Python script executing the classification pipeline from start to finish and exporting results.
 * 📄 **[classify_hanoi.ipynb](classify_hanoi.ipynb)**: Detailed Jupyter Notebook preserving the execution outputs and visualizations.
-* 📄 **[hanoi_lulc_district_areas.csv](hanoi_lulc_district_areas.csv)**: Detailed area statistics ($km^2$) for the 5 LULC classes calculated at 10m scale for the 29 districts of Hanoi.
-* 📄 **[hanoi_lulc_interactive.html](hanoi_lulc_interactive.html)**: Interactive Folium map displaying district boundaries, a 5-class LULC overlay, custom legend, and tooltips showing urbanization rate on hover.
+* 📊 **[data/hanoi_lulc_district_areas.csv](data/hanoi_lulc_district_areas.csv)**: Detailed area statistics ($km^2$) for the 5 LULC classes calculated at 10m scale for the 29 districts of Hanoi.
+* 🗺️ **[data/hanoi_districts.geojson](data/hanoi_districts.geojson)**: Hanoi district-level administration boundary GeoJSON.
+* 🌐 **[index.html](index.html)**: Self-contained interactive dashboard website showing LULC rankings and real-time map hovering info panels.
+* 📄 **[hanoi_lulc_interactive.html](hanoi_lulc_interactive.html)**: Interactive Folium map displaying district boundaries and a 5-class LULC GEE overlay.
 
 ---
 

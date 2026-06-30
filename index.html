@@ -645,7 +645,7 @@
             <span class="header-tag">Interactive</span>
         </div>
         <div class="header-actions">
-            <a href="hanoi_lulc_district_areas.csv" class="btn" download><i class="fa-solid fa-file-csv"></i> Export CSV</a>
+            <a href="data/hanoi_lulc_district_areas.csv" class="btn" download><i class="fa-solid fa-file-csv"></i> Export CSV</a>
             <a href="classify_hanoi.py" class="btn" download><i class="fa-solid fa-code"></i> Python Pipeline</a>
             <a href="https://github.com/TungDucVu/LULC_HANOI" target="_blank" class="btn btn-primary"><i class="fa-brands fa-github"></i> Repository</a>
         </div>
@@ -917,7 +917,7 @@
     </div>
 
     <!-- Include District Boundaries GeoJSON -->
-    <script src="hanoi_districts.js"></script>
+    <script src="data/hanoi_districts.js"></script>
 
     <!-- Interactive Logic Script -->
     <script>
@@ -966,7 +966,7 @@
 
         // Add LULC Static PNG raster overlay
         const bounds = [[20.565141830000048, 105.28470698200006], [21.385984408000095, 106.01836448300003]];
-        const lulcOverlay = L.imageOverlay('hanoi_lulc_2024.png', bounds, {
+        const lulcOverlay = L.imageOverlay('data/hanoi_lulc_2024.png', bounds, {
             opacity: 0.75,
             interactive: false
         }).addTo(map);

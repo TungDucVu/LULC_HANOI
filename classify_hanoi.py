@@ -243,7 +243,7 @@ df_clean['Total_LULC_Area_km2'] = (
 
 df_clean = df_clean.sort_values('Code_Vung').reset_index(drop=True)
 
-csv_output = "hanoi_lulc_district_areas.csv"
+csv_output = os.path.join("data", "hanoi_lulc_district_areas.csv")
 df_clean.to_csv(csv_output, index=False, encoding='utf-8')
 print(f"Area statistics exported successfully to '{csv_output}'!")
 print(df_clean.head(10))
