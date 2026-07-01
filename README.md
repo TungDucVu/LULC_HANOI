@@ -87,8 +87,7 @@ LULC_Hanoi_2021_2024/
 │
 ├── classify_hanoi.py                 # Main Python script for model classification
 ├── classify_hanoi.ipynb              # Detailed Jupyter Notebook pipeline
-├── index.html                        # Stunning interactive web dashboard (offline compatible)
-├── hanoi_lulc_interactive.html       # Dynamic Folium map (reference layer)
+├── index.html                        # Interactive Folium map with district boundaries & LULC overlay
 └── README.md
 ```
 
@@ -96,17 +95,24 @@ LULC_Hanoi_2021_2024/
 * 📄 **[classify_hanoi.ipynb](classify_hanoi.ipynb)**: Detailed Jupyter Notebook preserving the execution outputs and visualizations.
 * 📊 **[data/hanoi_lulc_district_areas.csv](data/hanoi_lulc_district_areas.csv)**: Detailed area statistics ($km^2$) for the 5 LULC classes calculated at 10m scale for the 29 districts of Hanoi.
 * 🗺️ **[data/hanoi_districts.geojson](data/hanoi_districts.geojson)**: Hanoi district-level administration boundary GeoJSON.
-* 🌐 **[index.html](index.html)**: Self-contained interactive dashboard website showing LULC rankings and real-time map hovering info panels.
-* 📄 **[hanoi_lulc_interactive.html](hanoi_lulc_interactive.html)**: Interactive Folium map displaying district boundaries and a 5-class LULC GEE overlay.
+* 🖼️ **[data/hanoi_lulc_2024.png](data/hanoi_lulc_2024.png)**: Static 10m-resolution LULC classification raster exported from GEE — used as the permanent map overlay in `index.html`.
+* 🌐 **[index.html](index.html)**: Interactive Folium map displaying Hanoi district boundaries and the 5-class LULC overlay.
 
 ---
 
-## 4. GEE Map Tile Expiration (Important Note)
+## 4. Static Classification Result
 
-> [!WARNING]
-> The LULC classification overlay on the interactive map (`hanoi_lulc_interactive.html`) is loaded dynamically from Google Earth Engine using a temporary Map ID. **These GEE Map IDs automatically expire after 36 to 72 hours.**
-> 
-> If the LULC overlay does not appear when opening the HTML file, the Map ID has expired. You can regenerate the files with fresh, active Map IDs by running the pipeline again.
+The image below shows the final 10m-resolution LULC classification output for Hanoi (2024), exported directly from Google Earth Engine:
+
+![Hanoi LULC 2024 Classification Result](data/hanoi_lulc_2024.png)
+
+| Class | Label | Color |
+|---|---|---|
+| 0 | Water | 🔵 Blue |
+| 1 | Urban | 🔴 Red |
+| 2 | Agriculture | 🟡 Yellow |
+| 3 | Greenery | 🟢 Green |
+| 4 | Bare Land | 🟤 Brown |
 
 ---
 
