@@ -1,0 +1,6 @@
+earthengine-api
+geopandas
+pandas
+geemap
+folium
+rasterio

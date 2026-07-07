@@ -13,12 +13,39 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 print("Initializing Google Earth Engine...")
 try:
-    ee.Initialize(project='crested-library-500309-i2')
-    print("GEE Initialized Successfully!")
+    ee_key_json = os.environ.get("EE_SERVICE_ACCOUNT_KEY")
+    local_key_path = "data/gen-lang-client-0520567475-9e431df4d813.json"
+    
+    if ee_key_json:
+        import tempfile
+        import json
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as temp_key_file:
+            temp_key_file.write(ee_key_json)
+            temp_key_file_path = temp_key_file.name
+        
+        key_data = json.loads(ee_key_json)
+        email = key_data.get("client_email")
+        credentials = ee.ServiceAccountCredentials(email, temp_key_file_path)
+        ee.Initialize(credentials=credentials, project='gen-lang-client-0520567475')
+        print("GEE Initialized via Env Secret Key successfully!")
+        os.unlink(temp_key_file_path)
+        
+    elif os.path.exists(local_key_path):
+        import json
+        with open(local_key_path, 'r') as f:
+            key_data = json.load(f)
+        email = key_data.get("client_email")
+        credentials = ee.ServiceAccountCredentials(email, local_key_path)
+        ee.Initialize(credentials=credentials, project='gen-lang-client-0520567475')
+        print("GEE Initialized via Local Service Account JSON successfully!")
+        
+    else:
+        ee.Initialize(project='gen-lang-client-0520567475')
+        print("GEE Initialized Successfully (Default User credentials)!")
 except Exception as e:
     print("Failed to initialize GEE, attempting authentication:", e)
     ee.Authenticate()
-    ee.Initialize(project='crested-library-500309-i2')
+    ee.Initialize(project='gen-lang-client-0520567475')
     print("GEE Authenticated and Initialized Successfully!")
 
 ################################################################################# ## 2. Tải và lọc ranh giới hành chính Hà Nội# # Chúng ta tải ranh giới huyện của Hà Nội từ Open Development Mekong và chuyển đổi sang FeatureCollection của GEE.################################################################################
@@ -348,7 +375,7 @@ legend_html = '''
 m.get_root().html.add_child(folium.Element(legend_html))
 folium.LayerControl().add_to(m)
 
-html_output = "hanoi_lulc_interactive.html"
+html_output = "index.html"
 m.save(html_output)
 print(f"Interactive Folium map saved to '{html_output}' successfully!")
 

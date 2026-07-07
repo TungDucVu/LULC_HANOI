@@ -1,126 +1,147 @@
-# Academic-Grade LULC Classification Pipeline for Hanoi (2021 - 2024)
+# 🌍 Hanoi Land Use & Land Cover (LULC) Classification & Interactive Dashboard
 
-This repository contains the source code implementing an academic-grade Land Use / Land Cover (LULC) classification pipeline for Hanoi. The methodology transitions from manual polygon digitizing to automated stratified sampling based on the **ESA WorldCover 2021** dataset, integrates topographic features (Elevation, Slope) from the **ALOS AW3D30 DEM**, and trains a **Random Forest (200 trees)** classifier on **Google Earth Engine (GEE)** combined with post-processing noise reduction filters.
-
----
-
-## 1. Classification Methodology
-
-The classification pipeline consists of 5 main stages:
-
-### Stage 1: Data Acquisition & Pre-processing
-* **Satellite Imagery**: Sentinel-2 Surface Reflectance (Level-2A) image composites are generated for the dry season (January 1st to February 15th) for 2021 (baseline year for sampling) and 2024 (target year for classification).
-* **Cloud Masking**: A QA60 cloud mask is applied to remove thick clouds and cirrus.
-* **Resampling**: To prevent GEE from automatically downsampling the imagery to a coarse 1-degree resolution during median compositing, `.resample('bicubic')` is applied directly to each individual image within the ImageCollection to preserve the native UTM projection and 10m grid.
-* **Topographic Features**: Elevation and slope data from JAXA's **ALOS AW3D30 DEM** (originally 30m resolution) are integrated and resampled to 10m.
-
-### Stage 2: Feature Selection & Engineering
-A total of **16 predictor features** are input into the classifier:
-* **Spectral Bands**: Blue (`B2`), Green (`B3`), Red (`B4`), Near-Infrared (`B8`), SWIR-1 (`B11`), and SWIR-2 (`B12`).
-* **Spectral Indices**:
-  * **NDVI** (Normalized Difference Vegetation Index): For identifying greenery/vegetation.
-  * **NDBI** (Normalized Difference Build-up Index): For identifying urban/built-up surfaces.
-  * **MNDWI** (Modified Normalized Difference Water Index): For identifying surface water bodies.
-  * **EVI** (Enhanced Vegetation Index): To improve differentiation of dense vegetation structures.
-  * **SAVI** (Soil Adjusted Vegetation Index): Adjusts for soil background brightness in sparse areas.
-  * **BSI** (Bare Soil Index): Enhances identification of construction sites and dry agricultural land.
-* **Topographic Indices**: Elevation (`elevation`) and Slope (`slope`).
-* **Temporal Variation Feature**: `NDVI_stdDev` (the standard deviation of NDVI over the entire year) helps distinguish seasonal cropland from stable urban areas or river sandbars.
-* **Spatial Texture Feature**: `B8_contrast` (GLCM contrast of the NIR B8 band) helps differentiate smooth riverbed sandbars from the complex, high-contrast textures of urban structures.
-
-### Stage 3: Automated Stratified Sampling & Noise Filtering
-* **Reference Labels**: The **ESA WorldCover 2021 (10m)** dataset is reclassified from 11 global classes to 5 local target classes:
-  * `0`: Water (Open water - ESA class 80)
-  * `1`: Urban (Built-up - ESA class 50)
-  * `2`: Agriculture (Cropland - ESA class 40)
-  * `3`: Greenery (Trees, Shrubland, Grassland, Herbaceous wetland - ESA classes 10, 20, 30, 90, 95)
-  * `4`: Bare Land (Barren / sparse vegetation - ESA classes 60, 100)
-* **Sampling**: The `.stratifiedSample()` function is executed on the 2021 Sentinel-2 composite over Hanoi using the reclassified ESA map:
-  * Total stratified sample points: **2,500 points** (maximum allocation: [2000, 1500, 1500, 1500, 2500])
-* **Spectral Filtering**: To eliminate reference label noise caused by seasonal mismatches (e.g., dry river sandbars mislabeled as Water by the static ESA WorldCover map), physical index filters are applied:
-  * Water samples must satisfy `MNDWI > -0.05`.
-  * Greenery samples must satisfy `NDVI > 0.25`.
-  * Bare Land samples must satisfy `MNDWI < 0` and `NDVI < 0.3`.
-* **Water Sample Enrichment**: An additional 50 manually digitized water pixels on the Red River from 2024 are merged to capture turbid water spectral profiles.
-* **Train/Test Split**: 70% of clean samples are used for training, and 30% are reserved for independent testing.
-
-### Stage 4: Model Training & Validation
-* **Model**: A Random Forest classifier configured with **200 decision trees** (`ee.Classifier.smileRandomForest(200)`).
-* **Validation**: Evaluated using the independent 30% test split.
-
-### Stage 5: Post-processing
-To eliminate salt-and-pepper noise and spatial classification errors, two filters are applied:
-1. **Spatial Mode Filter (Focal Mode)**: A circular focal mode filter with a 1-pixel radius (`.focalMode(1, 'circle')`) is applied to smooth out isolated misclassified pixels.
-2. **Water Masking**: Permanent water bodies from ESA WorldCover (class 80) are forced into the final LULC map using `.where()` to guarantee the high-fidelity representation of the main flow of the Red River.
+An academic-grade, end-to-end Machine Learning pipeline on Google Earth Engine (GEE) integrating **Sentinel-2 multispectral imagery**, **ALOS DEM topography**, and **ESA WorldCover reference maps** to perform 10m high-resolution Land Use / Land Cover (LULC) classification for Hanoi, Vietnam (2021–2024).
 
 ---
 
-## 2. Accuracy Assessment Results (70/30 Split)
+## 🚀 Project Overview
 
-After integrating spectral indices (EVI, SAVI, BSI) and spectral filtering:
-* **Overall Accuracy (OA)**: **83.48%**
-* **Kappa Coefficient**: **0.7930**
+This repository hosts a production-ready spatial data science pipeline designed to map, validate, and analyze LULC patterns across the 29 administrative districts of Hanoi. By training a **Random Forest classifier (200 trees)** and applying advanced post-processing mode and vector-masking filters, the pipeline achieves high spatial accuracy and produces an interactive analytical dashboard.
+
+### Key Highlights:
+* 🛰️ **GEE Integration**: Cloud-powered Sentinel-2 Surface Reflectance (Level-2A) image processing.
+* 🌲 **ALOS DEM Topography**: Spatial enrichment using 30m resolution elevation and slope data resampled to 10m.
+* 📊 **Stratified Sampling**: Automatic training point generation based on the static ESA WorldCover 2021 map, refined with physical spectral indices filters.
+* 🗺️ **Interactive Dashboard**: High-fidelity HTML mapping interface displaying district boundaries, tooltips, class area breakdowns, and urbanization indices.
+
+---
+
+## 📈 Model Performance & Accuracy Assessment
+
+Validated against an independent **30% test split** of filtered stratified samples:
+* 🎯 **Overall Accuracy (OA)**: **83.48%**
+* 📉 **Kappa Coefficient**: **0.7930**
 
 ### Confusion Matrix
-```text
-Actual \ Predicted | Water (0) | Urban (1) | Agriculture (2) | Greenery (3) | Bare Land (4)
-Water (0)          |    533    |     0     |       18        |      0       |      5
-Urban (1)          |      2    |   353     |       18        |     34       |     61
-Agriculture (2)    |     16    |    16     |      344        |     54       |     11
-Greenery (3)       |      1    |    32     |       57        |    347       |      2
-Bare Land (4)      |      1    |    41     |       17        |      0       |    383
+| Actual \ Predicted | Water (0) | Urban (1) | Agriculture (2) | Greenery (3) | Bare Land (4) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Water (0)** | **533** | 0 | 18 | 0 | 5 |
+| **Urban (1)** | 2 | **353** | 18 | 34 | 61 |
+| **Agriculture (2)** | 16 | 16 | **344** | 54 | 11 |
+| **Greenery (3)** | 1 | 32 | 57 | **347** | 2 |
+| **Bare Land (4)** | 1 | 41 | 17 | 0 | **383** |
+
+---
+
+## 🛠️ Pipeline Architecture
+
+The workflow details the progression from cloud-based imagery collection to local dashboard generation:
+
+```mermaid
+graph TD
+    A[Sentinel-2 SR Composite Jan-Feb] --> D[Feature Engineering]
+    B[ALOS AW3D30 DEM] --> D
+    D -->|16 Predictor Features| G[Random Forest Classifier 200 Trees]
+    
+    C[ESA WorldCover 2021] -->|Reclassify 11 to 5 classes| E[Reference Map]
+    E --> F[Stratified Sampling 2,500 points]
+    F -->|Spectral & Spatial Filtering| H[Clean Training Samples 70%]
+    F -->|Independent Validation Samples 30%| I[Accuracy Assessment]
+    
+    H --> G
+    G --> J[2024 Raw LULC Classification]
+    J --> K[Post-processing Focal Mode Filter]
+    K --> L[Force Permanent Water Mask]
+    L --> M[Final 10m LULC Map]
+    
+    M --> N[District Area Statistics CSV]
+    M --> O[Interactive Folium Map HTML]
 ```
 
 ---
 
-## 3. Directory Deliverables & Structure
+## 🔬 Classification Methodology & Predictors
 
-The repository is organized following a simplified structure (Option A), separating scripts from datasets:
+### 1. Predictor Features (16 Bands & Indices)
+| Category | Feature Name | Description | Source / Formula |
+| :--- | :--- | :--- | :--- |
+| **Spectral Bands** | `B2`, `B3`, `B4`, `B8`, `B11`, `B12` | Blue, Green, Red, Near-Infrared (NIR), Shortwave Infrared (SWIR-1, SWIR-2) | Sentinel-2 L2A |
+| **Spectral Indices** | `NDVI` | Normalized Difference Vegetation Index (Vegetation density) | $\frac{B8 - B4}{B8 + B4}$ |
+| | `NDBI` | Normalized Difference Build-up Index (Urban intensity) | $\frac{B11 - B8}{B11 + B8}$ |
+| | `MNDWI` | Modified Normalized Difference Water Index (Open water) | $\frac{B3 - B11}{B3 + B11}$ |
+| | `EVI` | Enhanced Vegetation Index (Dense canopy structure) | $2.5 \times \frac{B8 - B4}{B8 + 6 \times B4 - 7.5 \times B2 + 1}$ |
+| | `SAVI` | Soil Adjusted Vegetation Index (Sparse vegetation correction) | $\frac{B8 - B4}{B8 + B4 + 0.5} \times 1.5$ |
+| | `BSI` | Bare Soil Index (Barren/exposed soil enhancement) | $\frac{(B11 + B4) - (B8 + B2)}{(B11 + B4) + (B8 + B2)}$ |
+| **Topographics** | `elevation` | Elevation above sea level (m) | ALOS AW3D30 DEM |
+| | `slope` | Slope gradient (degrees) | Derived from ALOS DEM |
+| **Temporal** | `NDVI_stdDev` | Annual standard deviation of NDVI (Cropland dynamics) | Standard deviation of 12-month Sentinel-2 series |
+| **Texture** | `B8_contrast` | GLCM Contrast of NIR Band (Spatial texture contrast) | Grey-Level Co-occurrence Matrix (1px window) |
+
+### 2. ESA WorldCover Reclassification Schema
+| Target Class | Label | Reclassified from (ESA WorldCover 2021 Classes) | Color Palette |
+| :---: | :--- | :--- | :---: |
+| **0** | Water | Open water (80) | 🔵 Blue (`#0000ff`) |
+| **1** | Urban | Built-up (50) | 🔴 Red (`#ff0000`) |
+| **2** | Agriculture | Cropland (40) | 🟡 Yellow (`#ffff00`) |
+| **3** | Greenery | Trees (10), Shrubland (20), Grassland (30), Herbaceous wetland (90), Moss & lichen (95) | 🟢 Green (`#008000`) |
+| **4** | Bare Land | Barren / sparse vegetation (60), Mangroves (100) | 🟤 Brown (`#a0522d`) |
+
+### 3. Noise & Mismatch Spectral Filters
+To eliminate reference label noise caused by seasonal mismatches (e.g., dry river sandbars mislabeled as Water by the static ESA WorldCover map), physical index filters are applied during training point collection:
+* **Water Samples**: Must satisfy `MNDWI > -0.05`.
+* **Greenery Samples**: Must satisfy `NDVI > 0.25`.
+* **Bare Land Samples**: Must satisfy `MNDWI < 0` and `NDVI < 0.3`.
+
+---
+
+## 📁 Repository Deliverables
+
+The repository is structured to separate automation logic from visualization assets:
 
 ```text
 LULC_Hanoi_2021_2024/
-├── data/                             # All data inputs, boundaries, and maps
+├── data/                             # Data inputs, boundaries, and static map resources
 │   ├── hanoi_districts.geojson       # Hanoi district boundary coordinates (199 KB)
-│   ├── hanoi_districts.js            # GeoJSON wrapped in JS for offline CORS-free loading
+│   ├── hanoi_districts.js            # GeoJSON wrapped in JS for offline/CORS-free loading
 │   ├── hanoi_lulc_2024.png           # Static 10m raster LULC classification overlay
-│   └── hanoi_lulc_district_areas.csv  # District-level area statistics (km²)
+│   └── hanoi_lulc_district_areas.csv  # Output district-level area statistics (km²)
 │
-├── classify_hanoi.py                 # Main Python script for model classification
-├── classify_hanoi.ipynb              # Detailed Jupyter Notebook pipeline
+├── classify_hanoi.py                 # Main Python script for pipeline execution
+├── classify_hanoi.ipynb              # Detailed Jupyter Notebook pipeline with cell outputs
 ├── index.html                        # Interactive Folium map with district boundaries & LULC overlay
-└── README.md
+└── README.md                         # Project documentation
 ```
 
-* 📄 **[classify_hanoi.py](classify_hanoi.py)**: Python script executing the classification pipeline from start to finish and exporting results.
-* 📄 **[classify_hanoi.ipynb](classify_hanoi.ipynb)**: Detailed Jupyter Notebook preserving the execution outputs and visualizations.
+* 📄 **[classify_hanoi.py](classify_hanoi.py)**: Python automation script executing the classification pipeline from start to finish.
 * 📊 **[data/hanoi_lulc_district_areas.csv](data/hanoi_lulc_district_areas.csv)**: Detailed area statistics ($km^2$) for the 5 LULC classes calculated at 10m scale for the 29 districts of Hanoi.
-* 🗺️ **[data/hanoi_districts.geojson](data/hanoi_districts.geojson)**: Hanoi district-level administration boundary GeoJSON.
-* 🖼️ **[data/hanoi_lulc_2024.png](data/hanoi_lulc_2024.png)**: Static 10m-resolution LULC classification raster exported from GEE — used as the permanent map overlay in `index.html`.
-* 🌐 **[index.html](index.html)**: Interactive Folium map displaying Hanoi district boundaries and the 5-class LULC overlay.
+* 🖼️ **[data/hanoi_lulc_2024.png](data/hanoi_lulc_2024.png)**: Static 10m-resolution LULC classification raster exported from GEE.
+* 🌐 **[index.html](index.html)**: Interactive Folium map displaying Hanoi district boundaries, hover-activated tooltips showing urbanization rates, and the 5-class LULC overlay.
 
 ---
 
-## 4. Static Classification Result
+## 🗺️ Static Classification Preview
 
-The image below shows the final 10m-resolution LULC classification output for Hanoi (2024), exported directly from Google Earth Engine:
+The final 10m-resolution LULC classification output for Hanoi (2024), showing urban density along the Red River:
 
 ![Hanoi LULC 2024 Classification Result](data/hanoi_lulc_2024.png)
 
-| Class | Label | Color |
-|---|---|---|
-| 0 | Water | 🔵 Blue |
-| 1 | Urban | 🔴 Red |
-| 2 | Agriculture | 🟡 Yellow |
-| 3 | Greenery | 🟢 Green |
-| 4 | Bare Land | 🟤 Brown |
-
 ---
 
-## 5. How to Run
+## ⚙️ Setup & Execution
 
-Ensure that the environment containing Python and dependencies (`ee`, `geemap`, `folium`, `geopandas`, `pandas`, `rasterio`) is set up:
-
+### 1. Requirements & Dependencies
+Ensure your python environment (Python 3.10+) has the required libraries installed:
 ```bash
-# Run the Python script to regenerate map and CSV area statistics
+pip install earthengine-api geemap folium geopandas pandas rasterio
+```
+
+### 2. Google Earth Engine Authentication
+The script automatically detects GEE credentials:
+* **Service Account**: Place your JSON service account key at `data/gen-lang-client-0520567475-9e431df4d813.json` or export it to the `EE_SERVICE_ACCOUNT_KEY` environment variable.
+* **User Authentication**: If no service account key is found, the script defaults to standard user authentication (`ee.Authenticate()`).
+
+### 3. Running the Pipeline
+Run the script to fetch image composites, execute the classifier, save the statistics CSV, and render the interactive Folium dashboard:
+```bash
 python classify_hanoi.py
 ```

@@ -16,3 +16,9 @@ conda-env/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Credentials & Service Account Keys
+data/*.json
+
+# GIS temporary/auxiliary files
+*.aux.xml
