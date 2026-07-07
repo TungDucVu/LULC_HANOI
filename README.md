@@ -1,5 +1,11 @@
 # 🌍 Hanoi Land Use & Land Cover (LULC) Classification & Interactive Dashboard
 
+[![Schedule LULC Classification](https://github.com/TungDucVu/LULC_HANOI/actions/workflows/run_classification.yml/badge.svg)](https://github.com/TungDucVu/LULC_HANOI/actions/workflows/run_classification.yml)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)
+![Google Earth Engine](https://img.shields.io/badge/Google%20Earth%20Engine-Active-green?style=flat-square&logo=google&logoColor=white)
+![Folium](https://img.shields.io/badge/Folium-Interactive%20Maps-orange?style=flat-square&logo=openstreetmap&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+
 An academic-grade, end-to-end Machine Learning pipeline on Google Earth Engine (GEE) integrating **Sentinel-2 multispectral imagery**, **ALOS DEM topography**, and **ESA WorldCover reference maps** to perform 10m high-resolution Land Use / Land Cover (LULC) classification for Hanoi, Vietnam (2021–2024).
 
 ---
