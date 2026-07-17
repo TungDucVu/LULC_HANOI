@@ -6,7 +6,7 @@
 ![Folium](https://img.shields.io/badge/Folium-Interactive%20Maps-orange?style=flat-square&logo=openstreetmap&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 
-An academic-grade, end-to-end Machine Learning pipeline on Google Earth Engine (GEE) integrating **Sentinel-2 multispectral imagery**, **ALOS DEM topography**, and **ESA WorldCover reference maps** to perform 10m high-resolution Land Use / Land Cover (LULC) classification for Hanoi, Vietnam (2021–2024).
+An academic-grade, end-to-end Machine Learning pipeline on Google Earth Engine (GEE) integrating **Sentinel-2 multispectral imagery**, **ALOS DEM topography**, and **ESA WorldCover reference maps** to perform 10m high-resolution Land Use / Land Cover (LULC) classification for Hanoi, Vietnam in 2024 (using training data from 2021 + ESA 2021 LULC to classify for 2024).
 
 ---
 
